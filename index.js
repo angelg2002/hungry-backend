@@ -54,6 +54,64 @@ app.get('/api/productos', async (req, res) => {
   }
 });
 
+// Ruta POST para el login de usuarios
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Por favor, proporciona email y contraseña.' });
+    }
+
+    const collection = db.collection('users');
+    // Buscamos al usuario por su email
+    const user = await collection.findOne({ email: email });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu email y contraseña.' });
+    }
+
+    // Si es correcto, devolvemos los datos (sin enviar la contraseña de vuelta)
+    res.json({ nombre: user.nombre, email: user.email, status: user.status || 'user' });
+  } catch (error) {
+    console.error('Error en el login:', error);
+    res.status(500).json({ error: 'Hubo un error al procesar el login.' });
+  }
+});
+
+// RUTA DE LOGIN: Verifica las credenciales de los usuarios de HungryAnimal
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body; // Recibimos lo que el usuario escribió en el formulario
+
+    try {
+        const db = client.db('hungry_db');
+        const usersCollection = db.collection('users');
+
+        // 1. Buscar si el correo existe en nuestra lista de 10 usuarios
+        const user = await usersCollection.findOne({ email: email });
+
+        if (!user) {
+            return res.status(404).json({ mensaje: "El correo no está registrado" });
+        }
+
+        // 2. Comparar la contraseña (texto plano por ahora)
+        if (user.password === password) {
+            // Si coincide, enviamos los datos (excepto el password por seguridad)
+            const { password, ...userData } = user;
+            res.json({
+                mensaje: "¡Bienvenido a HungryAnimal!",
+                user: userData
+            });
+        } else {
+            res.status(401).json({ mensaje: "Contraseña incorrecta" });
+        }
+
+    } catch (error) {
+        console.error("Error en el login:", error);
+        res.status(500).json({ mensaje: "Error interno del servidor" });
+    }
+});
+
 // Iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor de HungryAnimal escuchando en el puerto ${port}`);
