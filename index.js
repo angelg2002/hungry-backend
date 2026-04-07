@@ -112,6 +112,40 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// RUTA 1: Guardar una nueva compra (Se activa al dar "Pagar Ahora")
+app.post('/api/ordenes', async (req, res) => {
+    try {
+        const db = client.db('hungry_db');
+        const ordersCollection = db.collection('orders');
+        
+        const nuevaOrden = {
+            usuarioId: req.body.usuarioId, // ID del usuario que compra
+            productos: req.body.productos, // Array con los productos
+            total: req.body.total,
+            fecha: new Date() // Se guarda la fecha automática
+        };
+
+        const resultado = await ordersCollection.insertOne(nuevaOrden);
+        res.status(201).json({ mensaje: "Compra realizada con éxito", id: resultado.insertedId });
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al procesar el pago" });
+    }
+});
+
+// RUTA 2: Obtener historial para un usuario normal
+app.get('/api/ordenes/:userId', async (req, res) => {
+    try {
+        const db = client.db('hungry_db');
+        const ordersCollection = db.collection('orders');
+        
+        // Buscamos solo las compras de este usuario específico
+        const historial = await ordersCollection.find({ usuarioId: parseInt(req.params.userId) }).toArray();
+        res.json(historial);
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al obtener historial" });
+    }
+});
+
 // Iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor de HungryAnimal escuchando en el puerto ${port}`);
