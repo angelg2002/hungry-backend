@@ -112,6 +112,41 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// RUTA DE REGISTRO: Crea nuevos usuarios en la base de datos
+app.post('/api/registro', async (req, res) => {
+    const { nombre, apellido, mascota, correo, pass } = req.body;
+
+    try {
+        const db = client.db('hungry_db');
+        const usersCollection = db.collection('users');
+
+        // 1. Verificamos que el correo no esté registrado previamente
+        const existe = await usersCollection.findOne({ email: correo });
+        if (existe) {
+            return res.status(400).json({ error: "Este correo electrónico ya está registrado." });
+        }
+
+        // 2. Creamos el objeto del nuevo usuario
+        const nuevoUsuario = {
+            id: Date.now(), // Generamos ID numérico para compatibilidad con las órdenes
+            nombre: nombre,
+            apellido: apellido,
+            mascota: mascota,
+            email: correo,
+            password: pass, 
+            status: "user" // Por defecto, es un usuario normal
+        };
+
+        await usersCollection.insertOne(nuevoUsuario);
+
+        // 3. Respondemos con éxito y devolvemos los datos para hacer "auto-login"
+        res.status(201).json({ id: nuevoUsuario.id, nombre: nuevoUsuario.nombre, email: nuevoUsuario.email, status: nuevoUsuario.status });
+    } catch (error) {
+        console.error("Error en el registro:", error);
+        res.status(500).json({ error: "Hubo un error interno al crear la cuenta." });
+    }
+});
+
 // RUTA 1: Guardar una nueva compra (Se activa al dar "Pagar Ahora")
 app.post('/api/ordenes', async (req, res) => {
     // Log para ver en la terminal de Render qué datos llegan exactamente desde el frontend
