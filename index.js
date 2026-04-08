@@ -114,21 +114,48 @@ app.post('/api/login', async (req, res) => {
 
 // RUTA 1: Guardar una nueva compra (Se activa al dar "Pagar Ahora")
 app.post('/api/ordenes', async (req, res) => {
+    // Log para ver en la terminal de Render qué datos llegan exactamente desde el frontend
+    console.log("Datos recibidos en /api/ordenes desde el frontend:", req.body);
+
     try {
         const db = client.db('hungry_db');
         const ordersCollection = db.collection('orders');
+        const productsCollection = db.collection('products');
         
+        // 1. Validación y casteo de datos a Números (Crucial para MongoDB)
+        const usuarioId = Number(req.body.usuarioId);
+        const total = Number(req.body.total);
+        const productos = req.body.productos.map(prod => ({
+            ...prod,
+            id: Number(prod.id),
+            cantidad: Number(prod.cantidad)
+        }));
+
         const nuevaOrden = {
-            usuarioId: req.body.usuarioId, // ID del usuario que compra
-            productos: req.body.productos, // Array con los productos
-            total: req.body.total,
-            fecha: new Date() // Se guarda la fecha automática
+            usuarioId: usuarioId, // ID del usuario que compra validado
+            productos: productos, // Array con los IDs y cantidades ya como números
+            total: total,
+            fecha: new Date() 
         };
 
+        // 2. Guardar la orden en la colección orders
         const resultado = await ordersCollection.insertOne(nuevaOrden);
+
+        // 3. Lógica de Transacción: Actualizar el inventario en products
+        for (const producto of productos) {
+            await productsCollection.updateOne(
+                { id: producto.id }, // Buscamos por el ID del producto
+                { $inc: { stock: -producto.cantidad } } // El operador $inc con número negativo resta el valor
+            );
+        }
+
         res.status(201).json({ mensaje: "Compra realizada con éxito", id: resultado.insertedId });
     } catch (error) {
-        res.status(500).json({ mensaje: "Error al procesar el pago" });
+        console.error("Error crítico al procesar la orden:", error);
+        res.status(500).json({ 
+            mensaje: "Error interno del servidor al procesar el pago y actualizar el inventario.", 
+            detalle: error.message 
+        });
     }
 });
 
